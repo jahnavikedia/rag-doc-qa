@@ -257,7 +257,3 @@ This project is designed for local use. For production scale:
 The provider abstraction pattern makes these swaps straightforward — change one class, not the whole app.
 
 ---
-
-## 📝 License
-
-MIT
