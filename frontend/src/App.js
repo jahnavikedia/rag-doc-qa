@@ -10,7 +10,9 @@ function App() {
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  const API_BASE = "http://localhost:8001/api/v1";
+  const API_BASE = window.location.hostname === "localhost" && window.location.port === "3001"
+    ? "http://localhost:8001/api/v1"   // Local development
+    : "/api/v1";                        // Docker (proxied through nginx)
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
