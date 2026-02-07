@@ -4,6 +4,8 @@ A full-stack **Retrieval-Augmented Generation (RAG)** system that lets you uploa
 
 **100% free and local.** No API keys, no cloud services. Everything runs on your machine.
 
+![Python](https://img.shields.io/badge/Python-3.11+-blue) ![React](https://img.shields.io/badge/React-18-61dafb) ![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green) ![Docker](https://img.shields.io/badge/Docker-Ready-2496ED)
+
 ---
 
 ## ✨ Features
