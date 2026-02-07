@@ -1,4 +1,4 @@
-"""FastAPI application — the entry point of our backend."""
+"""FastAPI application factory with lifespan management."""
 
 from contextlib import asynccontextmanager
 
@@ -6,58 +6,65 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
+from app.core.chunker import Chunker
+from app.core.embeddings import EmbeddingProvider
+from app.core.vector_store import VectorStore
+from app.services.ingestion import IngestionService
+from app.services.llm import LLMService
+from app.services.retriever import RetrieverService
+from app.api.router import api_router
+from app.api import documents, query
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Runs on startup and shutdown.
+    """Startup and shutdown logic.
 
-    Startup: initialize all services (vector store, embeddings, LLM)
-    Shutdown: clean up resources
+    Startup: Initialize all services (load models, connect to DBs).
+    Shutdown: Clean up resources.
     """
-    print(f"🚀 Starting DocQA server...")
-    print(f"   LLM: Ollama ({settings.ollama_model})")
-    print(f"   Embeddings: {settings.embedding_model}")
-    print(f"   Chunk size: {settings.chunk_size}")
+    print("🚀 Starting up...")
 
-    # TODO: We'll initialize our services here soon
-    # - Vector store (ChromaDB)
-    # - Embedding model (sentence-transformers)
-    # - LLM client (Ollama)
-    # - Ingestion service
-    # - Retriever service
-
-    yield  # App is running and handling requests between startup and shutdown
-
-    print("👋 Shutting down DocQA server...")
-
-
-def create_app() -> FastAPI:
-    """Create and configure the FastAPI application."""
-    app = FastAPI(
-        title="DocQA — Document Q&A with RAG",
-        description=(
-            "Upload documents, chunk and embed them into a vector store, "
-            "and query them with natural language to get grounded answers."
-        ),
-        version="1.0.0",
-        lifespan=lifespan,
+    # Initialize core components
+    chunker = Chunker(
+        chunk_size=settings.chunk_size,
+        chunk_overlap=settings.chunk_overlap,
     )
+    embedding_provider = EmbeddingProvider()
+    vector_store = VectorStore(persist_dir=settings.chroma_persist_dir)
+    llm_service = LLMService()
 
-    # CORS — allows our React frontend to talk to this backend
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.cors_origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    # Initialize services
+    ingestion_service = IngestionService(chunker, embedding_provider, vector_store)
+    retriever_service = RetrieverService(embedding_provider, vector_store, llm_service)
 
-    # TODO: We'll add our API routes here
-    # app.include_router(api_router)
+    # Inject services into endpoint modules
+    documents.ingestion_service = ingestion_service
+    documents.vector_store = vector_store
+    query.retriever_service = retriever_service
 
-    return app
+    print("✅ All services initialized!")
+
+    yield  # App runs here
+
+    print("👋 Shutting down...")
 
 
-# This is what uvicorn runs
-app = create_app()
+app = FastAPI(
+    title="DocQA — RAG Document Q&A",
+    description="Upload documents and ask questions. Powered by local AI.",
+    version="0.1.0",
+    lifespan=lifespan,
+)
+
+# CORS — allow frontend to talk to backend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Register routes
+app.include_router(api_router)
